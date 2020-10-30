@@ -17,12 +17,16 @@ class Screen
     self.display_screen letters, turns
   end
 
-  def display_screen letters, turns
-    display_str = "      ____________________________________\n
+  def display_screen letters, turns, guesses = nil
+    guesses_str = ""
+    guesses.each {|g| guesses_str += "#{g.upcase} "} if guesses
+    
+    display_str = "      ______________________________________________________\n
         HANGMAN\n \n 
         #{letters.join(" ")}\n \n
         TURNS: #{turns}\n
-      ____________________________________ 
+        GUESSED LETTERS: #{guesses_str}\n
+      ______________________________________________________  
     "
     puts display_str
   end
@@ -47,13 +51,15 @@ end
 
 class Game
 
-  attr_accessor :board, :turns
+  attr_accessor :board, :turns, :guesses, :winner
   attr_reader :secret_word
 
   def initialize secret_word, turns
-    @secret_word = secret_word
+    @secret_word = secret_word.downcase
     @board = self.build_board
     @turns = turns
+    @guesses = []
+    @winner = false
   end
 
   def build_board
@@ -62,28 +68,45 @@ class Game
     word_array
   end
 
-  def compare_guess guess
-    word = self.secret_word.split ""
-    g = guess.split ""
+  def compare_guess guess, guess_feedback
+    
+    word = self.secret_word.split""
+    g = guess[0].downcase
+    self.guesses << g
 
-    guess_feedback = []
-    word.each {|e| e == g ? guess_feedback << g : guess_feedback << "_" }
-    guess_feedback  
+    p self.secret_word
+  
+    word.each_with_index do |letter, index| 
+      if letter == g
+        guess_feedback.slice!(index) 
+        guess_feedback.insert(index, g)
+      end 
+    end
+
+    self.winner = true if word == guess_feedback
   end
 
   def play_turn screen
-    self.turn -= 1
+    self.turns -= 1
 
-    puts "\nEnter your guess..."
+    puts "\nEnter your guess...\n "
     guess = gets
 
-    self.board = self.compare_guess guess
-    screen.display_screen self.board, self.turn
+    self.compare_guess guess, self.board
+    screen.display_screen self.board, self.turns, self.guesses
+  end
+
+  def run_game screen
+    until winner || self.turns == 0
+      self.play_turn screen
+    end
+    puts winner ? "You win!\n " : "Game over!\n "
   end
 
 end
 
 words = File.open("dictionary.txt", "r").readlines(chomp: true)
 dictionary = Dictionary.new words, 5
-game = Game.new dictionary.word, 12
+game = Game.new dictionary.word, 20
 screen = Screen.new game.board, game.turns
+game.run_game screen
